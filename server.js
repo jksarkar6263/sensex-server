@@ -1,31 +1,28 @@
-// server.js
 import express from "express";
 import fetch from "node-fetch";
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 // In-memory tick store (reset daily at 9:15)
 let sensexTicks = [];
 
-// Function to fetch Sensex futures CMP from your API endpoint
+// Function to fetch Sensex futures CMP from your existing API
 async function fetchSensexFutureCMP() {
   try {
-    const resp = await fetch("http://localhost:5000/api/futures?symbol=sensex");
+    // IMPORTANT: use the SAME endpoint your frontend uses
+    const resp = await fetch("https://<your-public-api-domain>/api/futureQuote?symbol=SENSEX&expiry=NEAR_MONTH");
     const data = await resp.json();
-    const records = data?.resultData || [];
-    if (!records.length) return;
+    const row = data?.resultData;
+    if (!row) return;
 
-    // Pick near-month expiry (first record)
-    const chartRow = records[0];
     const tick = {
-      time: chartRow.time,       // e.g. "09:15:00"
-      ltp: Number(chartRow.ltp), // CMP
-      prevClose: Number(chartRow.prev_close),
-      expiry: String(chartRow.expiry_date).slice(0,10)
+      time: new Date().toLocaleTimeString("en-IN", { hour12: false }),
+      ltp: Number(row.last_price),
+      prevClose: Number(row.prev_close),
+      expiry: String(row.expiry_date).slice(0, 10)
     };
 
-    // Avoid duplicates
     if (!sensexTicks.find(t => t.time === tick.time && t.expiry === tick.expiry)) {
       sensexTicks.push(tick);
       console.log("Logged tick:", tick);
@@ -58,6 +55,11 @@ setInterval(() => {
 // API endpoint to serve ticks to frontend
 app.get("/api/sensexTicks", (req, res) => {
   res.json({ result: 1, resultMessage: "Success", resultData: sensexTicks });
+});
+
+// Root route for Render health check
+app.get("/", (req, res) => {
+  res.send("Sensex server is running. Use /api/sensexTicks to get data.");
 });
 
 app.listen(PORT, () => {
