@@ -1,18 +1,14 @@
 {
   "name": "sensex-server",
   "version": "1.0.0",
+  "description": "Backend logger for Sensex futures CMP vs Time intraday chart",
   "main": "server.js",
   "type": "module",
   "scripts": {
-    "start": "node server.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node server.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
   "dependencies": {
-    "express": "^5.2.1",
+    "express": "^4.18.2",
     "node-fetch": "^3.3.2"
   }
 }
