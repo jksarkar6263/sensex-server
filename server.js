@@ -4,48 +4,31 @@ import fetch from "node-fetch";
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// In-memory tick store (reset daily at 9:15)
-let sensexTicks = [];
+// In-memory tick store keyed by expiry
+let sensexTicks = {};
 
-<<<<<<< HEAD
 // Function to fetch Sensex futures CMP from NiftyTrader API
 async function fetchSensexFutureCMP() {
   try {
     const resp = await fetch("https://webapi.niftytrader.in/webapi/Symbol/future-expiry-data?symbol=sensex&exchange=bse");
-=======
-// Function to fetch Sensex futures CMP from your existing API
-async function fetchSensexFutureCMP() {
-  try {
-    // IMPORTANT: use the SAME endpoint your frontend uses
-    const resp = await fetch("https://<your-public-api-domain>/api/futureQuote?symbol=SENSEX&expiry=NEAR_MONTH");
->>>>>>> a2bed4a (Added final server.js and package.json)
     const data = await resp.json();
-    const row = data?.resultData;
-    if (!row) return;
+    const records = data?.resultData || [];
+    if (!records.length) return;
 
-<<<<<<< HEAD
-    // Pick the near-month expiry (first record in resultData)
-    const row = records[0];
-    const tick = {
-      time: new Date().toLocaleTimeString("en-IN", { hour12: false }),
-      ltp: Number(row.ltp),
-      prevClose: Number(row.prev_close ?? 0), // fallback if not provided
-      expiry: String(row.expiry_date).slice(0, 10)
-    };
+    // Loop through all expiry contracts (near + next month)
+    for (const row of records) {
+      const expiry = String(row.expiry_date).slice(0, 10);
+      const tick = {
+        time: new Date().toLocaleTimeString("en-IN", { hour12: false }),
+        ltp: Number(row.ltp),
+        expiry
+      };
 
-    // Avoid duplicate ticks for same time+expiry
-=======
-    const tick = {
-      time: new Date().toLocaleTimeString("en-IN", { hour12: false }),
-      ltp: Number(row.last_price),
-      prevClose: Number(row.prev_close),
-      expiry: String(row.expiry_date).slice(0, 10)
-    };
-
->>>>>>> a2bed4a (Added final server.js and package.json)
-    if (!sensexTicks.find(t => t.time === tick.time && t.expiry === tick.expiry)) {
-      sensexTicks.push(tick);
-      console.log("Logged tick:", tick);
+      if (!sensexTicks[expiry]) sensexTicks[expiry] = [];
+      if (!sensexTicks[expiry].find(t => t.time === tick.time)) {
+        sensexTicks[expiry].push(tick);
+        console.log(`Logged tick for expiry ${expiry}:`, tick);
+      }
     }
   } catch (err) {
     console.error("Error fetching Sensex CMP:", err);
@@ -56,7 +39,7 @@ async function fetchSensexFutureCMP() {
 function resetAtMarketOpen() {
   const now = new Date();
   if (now.getHours() === 9 && now.getMinutes() === 15) {
-    sensexTicks = [];
+    sensexTicks = {};
     console.log("Reset Sensex ticks at market open");
   }
 }
