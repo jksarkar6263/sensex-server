@@ -7,14 +7,23 @@ const PORT = process.env.PORT || 3000;
 // In-memory tick store (reset daily at 9:15)
 let sensexTicks = [];
 
+<<<<<<< HEAD
 // Function to fetch Sensex futures CMP from NiftyTrader API
 async function fetchSensexFutureCMP() {
   try {
     const resp = await fetch("https://webapi.niftytrader.in/webapi/Symbol/future-expiry-data?symbol=sensex&exchange=bse");
+=======
+// Function to fetch Sensex futures CMP from your existing API
+async function fetchSensexFutureCMP() {
+  try {
+    // IMPORTANT: use the SAME endpoint your frontend uses
+    const resp = await fetch("https://<your-public-api-domain>/api/futureQuote?symbol=SENSEX&expiry=NEAR_MONTH");
+>>>>>>> a2bed4a (Added final server.js and package.json)
     const data = await resp.json();
-    const records = data?.resultData || [];
-    if (!records.length) return;
+    const row = data?.resultData;
+    if (!row) return;
 
+<<<<<<< HEAD
     // Pick the near-month expiry (first record in resultData)
     const row = records[0];
     const tick = {
@@ -25,6 +34,15 @@ async function fetchSensexFutureCMP() {
     };
 
     // Avoid duplicate ticks for same time+expiry
+=======
+    const tick = {
+      time: new Date().toLocaleTimeString("en-IN", { hour12: false }),
+      ltp: Number(row.last_price),
+      prevClose: Number(row.prev_close),
+      expiry: String(row.expiry_date).slice(0, 10)
+    };
+
+>>>>>>> a2bed4a (Added final server.js and package.json)
     if (!sensexTicks.find(t => t.time === tick.time && t.expiry === tick.expiry)) {
       sensexTicks.push(tick);
       console.log("Logged tick:", tick);
