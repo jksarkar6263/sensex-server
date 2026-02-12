@@ -10,7 +10,9 @@ let sensexTicks = {};
 // Function to fetch Sensex futures CMP from NiftyTrader API
 async function fetchSensexFutureCMP() {
   try {
-    const resp = await fetch("https://webapi.niftytrader.in/webapi/Symbol/future-expiry-data?symbol=sensex&exchange=bse");
+    const resp = await fetch(
+      "https://webapi.niftytrader.in/webapi/Symbol/future-expiry-data?symbol=sensex&exchange=bse"
+    );
     const data = await resp.json();
     const records = data?.resultData || [];
     if (!records.length) {
@@ -24,7 +26,7 @@ async function fetchSensexFutureCMP() {
     for (const row of records) {
       const expiry = String(row.expiry_date).slice(0, 10);
       const tick = {
-        time: row.time,  // <-- use API's time field
+        time: row.time, // <-- use API's time field
         ltp: Number(row.ltp ?? row.last_price ?? row.close_price),
         expiry
       };
