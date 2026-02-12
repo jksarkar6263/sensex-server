@@ -24,8 +24,8 @@ async function fetchSensexFutureCMP() {
     for (const row of records) {
       const expiry = String(row.expiry_date).slice(0, 10);
       const tick = {
-        time: new Date().toLocaleTimeString("en-IN", { hour12: false }),
-        ltp: Number(row.ltp ?? row.last_price), // <-- fallback to last_price
+        time: row.time,  // <-- use API's time field
+        ltp: Number(row.ltp ?? row.last_price ?? row.close_price),
         expiry
       };
 
