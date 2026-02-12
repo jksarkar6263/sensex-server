@@ -13,14 +13,19 @@ async function fetchSensexFutureCMP() {
     const resp = await fetch("https://webapi.niftytrader.in/webapi/Symbol/future-expiry-data?symbol=sensex&exchange=bse");
     const data = await resp.json();
     const records = data?.resultData || [];
-    if (!records.length) return;
+    if (!records.length) {
+      console.log("No records returned from NiftyTrader");
+      return;
+    }
+
+    console.log("Fetched records:", records);
 
     // Loop through all expiry contracts (near + next month)
     for (const row of records) {
       const expiry = String(row.expiry_date).slice(0, 10);
       const tick = {
         time: new Date().toLocaleTimeString("en-IN", { hour12: false }),
-        ltp: Number(row.ltp),
+        ltp: Number(row.ltp ?? row.last_price), // <-- fallback to last_price
         expiry
       };
 
