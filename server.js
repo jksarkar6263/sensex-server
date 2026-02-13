@@ -5,7 +5,7 @@ import cors from "cors";
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(cors()); // allow frontend fetches without CORS issues
+app.use(cors()); // ✅ allow frontend fetches without CORS issues
 
 // In-memory tick store keyed by expiry (DD-MM-YYYY)
 let sensexTicks = {};
@@ -14,7 +14,8 @@ let sensexTicks = {};
 async function fetchSensexFutureCMP() {
   try {
     const resp = await fetch(
-      "https://webapi.niftytrader.in/webapi/Symbol/future-expiry-data?symbol=sensex&exchange=bse"
+      "https://webapi.niftytrader.in/webapi/Symbol/future-expiry-data?symbol=sensex&exchange=bse",
+      { timeout: 15000 } // ✅ prevent hanging requests
     );
     const data = await resp.json();
     const records = data?.resultData || [];
@@ -23,25 +24,36 @@ async function fetchSensexFutureCMP() {
       return;
     }
 
-    console.log("Fetched records:", records);
-
     // Loop through all expiry contracts (near + next month)
     for (const row of records) {
-      // Format expiry as DD-MM-YYYY to match dropdown
+      // ✅ Normalize expiry to DD-MM-YYYY
       const expiryDate = new Date(row.expiry_date);
       const formattedExpiry = expiryDate
         .toLocaleDateString("en-GB") // gives DD/MM/YYYY
         .replace(/\//g, "-");        // → DD-MM-YYYY
 
+      // ✅ Use API’s time field, fallback to current IST if missing
+      const tickTime = row.time || new Date().toLocaleTimeString("en-IN", { hour12: false });
+
       const tick = {
-        time: row.time, // use API's time field directly
+        time: tickTime,
         ltp: Number(row.ltp ?? row.last_price ?? row.close_price),
+        oi: row.oi,
+        change_oi: row.change_oi,
+        change_oi_per: row.change_oi_per,
+        change_ltp: row.change_ltp,
         expiry: formattedExpiry
       };
 
       if (!sensexTicks[formattedExpiry]) sensexTicks[formattedExpiry] = [];
       if (!sensexTicks[formattedExpiry].find(t => t.time === tick.time)) {
         sensexTicks[formattedExpiry].push(tick);
+
+        // ✅ Keep only last 100 ticks per expiry to avoid memory bloat
+        if (sensexTicks[formattedExpiry].length > 100) {
+          sensexTicks[formattedExpiry].shift();
+        }
+
         console.log(`Logged tick for expiry ${formattedExpiry}:`, tick);
       }
     }
