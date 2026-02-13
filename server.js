@@ -1,51 +1,61 @@
 import express from "express";
 import fetch from "node-fetch";
+import cors from "cors";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// In-memory tick store (reset daily at 9:15)
-let sensexTicks = [];
+app.use(cors()); // ✅ allow frontend fetches without CORS issues
 
-<<<<<<< HEAD
+// In-memory tick store keyed by expiry (DD-MM-YYYY)
+let sensexTicks = {};
+
 // Function to fetch Sensex futures CMP from NiftyTrader API
 async function fetchSensexFutureCMP() {
   try {
-    const resp = await fetch("https://webapi.niftytrader.in/webapi/Symbol/future-expiry-data?symbol=sensex&exchange=bse");
-=======
-// Function to fetch Sensex futures CMP from your existing API
-async function fetchSensexFutureCMP() {
-  try {
-    // IMPORTANT: use the SAME endpoint your frontend uses
-    const resp = await fetch("https://<your-public-api-domain>/api/futureQuote?symbol=SENSEX&expiry=NEAR_MONTH");
->>>>>>> a2bed4a (Added final server.js and package.json)
+    const resp = await fetch(
+      "https://webapi.niftytrader.in/webapi/Symbol/future-expiry-data?symbol=sensex&exchange=bse",
+      { timeout: 15000 } // ✅ prevent hanging requests
+    );
     const data = await resp.json();
-    const row = data?.resultData;
-    if (!row) return;
+    const records = data?.resultData || [];
+    if (!records.length) {
+      console.log("No records returned from NiftyTrader");
+      return;
+    }
 
-<<<<<<< HEAD
-    // Pick the near-month expiry (first record in resultData)
-    const row = records[0];
-    const tick = {
-      time: new Date().toLocaleTimeString("en-IN", { hour12: false }),
-      ltp: Number(row.ltp),
-      prevClose: Number(row.prev_close ?? 0), // fallback if not provided
-      expiry: String(row.expiry_date).slice(0, 10)
-    };
+    // Loop through all expiry contracts (near + next month)
+    for (const row of records) {
+      // ✅ Normalize expiry to DD-MM-YYYY
+      const expiryDate = new Date(row.expiry_date);
+      const formattedExpiry = expiryDate
+        .toLocaleDateString("en-GB") // gives DD/MM/YYYY
+        .replace(/\//g, "-");        // → DD-MM-YYYY
 
-    // Avoid duplicate ticks for same time+expiry
-=======
-    const tick = {
-      time: new Date().toLocaleTimeString("en-IN", { hour12: false }),
-      ltp: Number(row.last_price),
-      prevClose: Number(row.prev_close),
-      expiry: String(row.expiry_date).slice(0, 10)
-    };
+      // ✅ Use API’s time field, fallback to current IST if missing
+      const tickTime = row.time || new Date().toLocaleTimeString("en-IN", { hour12: false });
 
->>>>>>> a2bed4a (Added final server.js and package.json)
-    if (!sensexTicks.find(t => t.time === tick.time && t.expiry === tick.expiry)) {
-      sensexTicks.push(tick);
-      console.log("Logged tick:", tick);
+      const tick = {
+        time: tickTime,
+        ltp: Number(row.ltp ?? row.last_price ?? row.close_price),
+        oi: row.oi,
+        change_oi: row.change_oi,
+        change_oi_per: row.change_oi_per,
+        change_ltp: row.change_ltp,
+        expiry: formattedExpiry
+      };
+
+      if (!sensexTicks[formattedExpiry]) sensexTicks[formattedExpiry] = [];
+      if (!sensexTicks[formattedExpiry].find(t => t.time === tick.time)) {
+        sensexTicks[formattedExpiry].push(tick);
+
+        // ✅ Keep only last 100 ticks per expiry to avoid memory bloat
+        if (sensexTicks[formattedExpiry].length > 100) {
+          sensexTicks[formattedExpiry].shift();
+        }
+
+        console.log(`Logged tick for expiry ${formattedExpiry}:`, tick);
+      }
     }
   } catch (err) {
     console.error("Error fetching Sensex CMP:", err);
@@ -56,12 +66,12 @@ async function fetchSensexFutureCMP() {
 function resetAtMarketOpen() {
   const now = new Date();
   if (now.getHours() === 9 && now.getMinutes() === 15) {
-    sensexTicks = [];
+    sensexTicks = {};
     console.log("Reset Sensex ticks at market open");
   }
 }
 
-// Poll every minute between 9:15 and 15:30
+// Poll every minute between 9:15 and 15:30 IST
 setInterval(() => {
   const now = new Date();
   const hr = now.getHours();
